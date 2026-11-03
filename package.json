@@ -5,7 +5,9 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node test.js"
+    "build": "node build.js",
+    "test": "node test.js",
+    "deploy:pages": "node build.js && npx wrangler pages deploy public --project-name insta1gram --branch main"
   },
   "keywords": [
     "instagram",

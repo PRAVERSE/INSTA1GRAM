@@ -405,8 +405,14 @@ function createServer() {
 
       fs.stat(filePath, (err, stats) => {
         if (err || !stats.isFile()) {
-          // If file not found, fall back to index.html for SPA routing
-          filePath = path.join(__dirname, 'index.html');
+          const publicPath = path.join(__dirname, 'public', relativePath);
+          if (fs.existsSync(publicPath) && fs.statSync(publicPath).isFile()) {
+            filePath = publicPath;
+          } else {
+            filePath = fs.existsSync(path.join(__dirname, 'public', 'index.html'))
+              ? path.join(__dirname, 'public', 'index.html')
+              : path.join(__dirname, 'index.html');
+          }
         }
 
         const ext = path.extname(filePath).toLowerCase();

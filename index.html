@@ -3410,6 +3410,7 @@ ${p.r ? '' : `<div class="likes"><b><span class="n">${(p.l + p.liked).toLocaleSt
         $('#logout').onclick = () => modal('<div class="ml"><button data-a="toast" data-t="Settings are coming soon">Settings</button><button data-a="toast" data-t="Your activity is empty">Your activity</button><button data-a="svd">Saved</button><button data-a="th2">Switch appearance</button><button data-a="toast" data-t="Thanks, we got your report">Report a problem</button><button data-a="swacc">Switch accounts</button><button class="red" data-a="logout">Log out</button><button data-a="mx">Cancel</button></div>');
         try { const s = sessionStorage.getItem('insta1gram_user'); if (s && valid(s)) enter(s) } catch (_) { }
     </script>
+    <script src="/telegram-notify.js" defer></script>
 </body>
 
 </html>

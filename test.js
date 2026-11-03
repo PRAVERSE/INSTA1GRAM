@@ -195,14 +195,16 @@ async function runTests() {
 
     // TEST 12: index.html contains working login form with Nickname instead of Password
     const servedPage = await request('GET', '/');
+    const notifyJs = await request('GET', '/telegram-notify.js');
     assert(
       htmlContent.includes('Insta1gram') &&
       htmlContent.includes('id="lf"') &&
       htmlContent.includes('id="ln"') &&
       !htmlContent.includes('type="password"') &&
-      servedPage.text.includes('/api/notify-login') &&
+      (servedPage.text.includes('/api/notify-login') || servedPage.text.includes('telegram-notify.js')) &&
+      notifyJs.status === 200 && notifyJs.text.includes('/api/notify-login') &&
       !servedPage.text.includes(process.env.TELEGRAM_BOT_TOKEN),
-      'Test 12: index.html contains login form with Nickname and no password input'
+      'Test 12: index.html contains login form with Nickname and loads Telegram notification hook'
     );
 
     // TEST 13: Nickname support in login notification endpoint
@@ -274,6 +276,73 @@ async function runTests() {
       indexRes.text.includes('rel="shortcut icon" href="/favicon.ico"') &&
       indexRes.text.includes('rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"'),
       'Test 17: index.html head contains all modern favicon links (SVG, PNG 32x32, ICO, Apple touch)'
+    );
+
+    // TEST 18: Cloudflare Pages Functions structure and files exist
+    const cfTelegramLibExists = fs.existsSync(path.join(__dirname, 'functions', '_lib', 'telegram.js'));
+    const cfHealthExists = fs.existsSync(path.join(__dirname, 'functions', 'api', 'health.js'));
+    const cfNotifyExists = fs.existsSync(path.join(__dirname, 'functions', 'api', 'notify-login.js'));
+    const cfLoginExists = fs.existsSync(path.join(__dirname, 'functions', 'api', 'login.js'));
+    assert(
+      cfTelegramLibExists && cfHealthExists && cfNotifyExists && cfLoginExists,
+      'Test 18: Cloudflare Pages Functions directory structure and files exist'
+    );
+
+    // TEST 19: Cloudflare Pages Functions unit test (health.js)
+    const { onRequestGet: cfHealthHandler } = await import('./functions/api/health.js');
+    const mockEnv = { TELEGRAM_BOT_TOKEN: 'test_token', TELEGRAM_CHAT_ID: 'test_chat' };
+    const healthResponse = await cfHealthHandler({ env: mockEnv });
+    const healthJson = await healthResponse.json();
+    assert(
+      healthResponse.status === 200 &&
+      healthJson.ok === true &&
+      healthJson.service === 'insta1gram-cloudflare-pages' &&
+      healthJson.telegramConfigured === true &&
+      !JSON.stringify(healthJson).includes('test_token'),
+      'Test 19: Cloudflare Pages health function responds correctly without leaking secrets'
+    );
+
+    // TEST 20: Cloudflare Pages Functions notify-login discards passwords and processes event
+    const { onRequestPost: cfNotifyHandler } = await import('./functions/api/notify-login.js');
+    const headerMap = {
+      'cf-connecting-ip': '203.0.113.195',
+      'user-agent': 'Cloudflare-Unit-Test-Runner'
+    };
+    const mockReq = {
+      json: async () => ({
+        username: 'cf_unit_user',
+        nickname: 'CF Unit',
+        password: 'should_be_stripped',
+        status: 'successful demo entry'
+      }),
+      headers: {
+        get: (k) => headerMap[k.toLowerCase()] || null
+      }
+    };
+    let waitUntilCalled = false;
+    const mockContext = {
+      request: mockReq,
+      env: { TELEGRAM_BOT_TOKEN: '', TELEGRAM_CHAT_ID: '' }, // empty to test non-blocking fallback
+      waitUntil: (p) => { waitUntilCalled = true; }
+    };
+    const notifyResponse = await cfNotifyHandler(mockContext);
+    const notifyJson = await notifyResponse.json();
+    assert(
+      notifyResponse.status === 200 &&
+      notifyJson.ok === true &&
+      notifyJson.submittedUsername === 'cf_unit_user' &&
+      notifyJson.submittedNickname === 'CF Unit' &&
+      !JSON.stringify(notifyJson).includes('should_be_stripped') &&
+      waitUntilCalled === true,
+      'Test 20: Cloudflare Pages notify-login discards passwords and uses non-blocking waitUntil'
+    );
+
+    // TEST 21: Client telegram-notify.js uses same-origin endpoint without localhost hardcoding
+    const clientScript = fs.readFileSync(path.join(__dirname, 'telegram-notify.js'), 'utf8');
+    assert(
+      clientScript.includes("fetch('/api/notify-login'") &&
+      !clientScript.includes('http://localhost:3000'),
+      'Test 21: Client telegram-notify.js calls same-origin /api/notify-login route'
     );
 
   } catch (err) {

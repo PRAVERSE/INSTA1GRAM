@@ -254,6 +254,28 @@ async function runTests() {
       'Test 15: Password fields are completely stripped and never exposed in responses or notifications'
     );
 
+    // TEST 16: Professional Favicon assets exist and are served with correct MIME types
+    const faviconIcoRes = await request('GET', '/favicon.ico');
+    const faviconSvgRes = await request('GET', '/favicon.svg');
+    const favicon32Res = await request('GET', '/favicon-32x32.png');
+    assert(
+      faviconIcoRes.status === 200 && faviconIcoRes.headers['content-type'] === 'image/x-icon' &&
+      faviconSvgRes.status === 200 && faviconSvgRes.headers['content-type'] === 'image/svg+xml' &&
+      favicon32Res.status === 200 && favicon32Res.headers['content-type'] === 'image/png',
+      'Test 16: Favicon assets (.ico, .svg, .png) are served with 200 OK and correct MIME types'
+    );
+
+    // TEST 17: index.html contains proper favicon declarations in <head>
+    const indexRes = await request('GET', '/');
+    assert(
+      indexRes.status === 200 &&
+      indexRes.text.includes('rel="icon" type="image/svg+xml" href="/favicon.svg"') &&
+      indexRes.text.includes('rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png"') &&
+      indexRes.text.includes('rel="shortcut icon" href="/favicon.ico"') &&
+      indexRes.text.includes('rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"'),
+      'Test 17: index.html head contains all modern favicon links (SVG, PNG 32x32, ICO, Apple touch)'
+    );
+
   } catch (err) {
     console.error('Test runner error:', err);
     failed++;

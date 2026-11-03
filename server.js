@@ -429,6 +429,7 @@ function createServer() {
             }
             res.writeHead(200, {
               'Content-Type': 'text/html; charset=utf-8',
+              'Cache-Control': 'no-cache',
               'Content-Length': Buffer.byteLength(modified)
             });
             res.end(modified);
@@ -436,7 +437,11 @@ function createServer() {
           return;
         }
 
-        res.writeHead(200, { 'Content-Type': contentType });
+        const headers = { 'Content-Type': contentType };
+        if (ext === '.ico' || ext === '.svg' || ext === '.png') {
+          headers['Cache-Control'] = 'public, max-age=86400';
+        }
+        res.writeHead(200, headers);
         const stream = fs.createReadStream(filePath);
         stream.on('error', streamErr => {
           console.error('[Server] Stream error:', streamErr.message);
